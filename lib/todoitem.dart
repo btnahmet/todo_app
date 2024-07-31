@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:todo_app/model/task.dart';
 
 class TodoItem extends StatefulWidget {
-  const TodoItem({super.key, required this.task});
+  const TodoItem({
+    super.key,
+    required this.task,
+    this.onSelected, // onSelected parametresini ekleyin
+  });
+
   final Task task;
+  final void Function(bool)? onSelected;
 
   @override
   State<TodoItem> createState() => _TodoItemState();
@@ -11,6 +17,13 @@ class TodoItem extends StatefulWidget {
 
 class _TodoItemState extends State<TodoItem> {
   bool isChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    isChecked = widget.task.isCompleted;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -25,7 +38,8 @@ class _TodoItemState extends State<TodoItem> {
             ),
             Expanded(
               child: Column(
-                children: [ 
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
                     widget.task.title,
                     style: const TextStyle(
@@ -36,15 +50,18 @@ class _TodoItemState extends State<TodoItem> {
               ),
             ),
             Checkbox(
-                value: isChecked,
-                onChanged: (val) {
-                  setState(() {
-                    widget.task.isCompleted = !widget.task.isCompleted;
-                    isChecked = val!;
-                  });
-                }),
-                //Checkbox(value: value, onChanged: onChanged)
-                ],
+              value: isChecked,
+              onChanged: (bool? value) {
+                setState(() {
+                  isChecked = value ?? false;
+                  widget.task.isCompleted = isChecked;
+                });
+                if (widget.onSelected != null) {
+                  widget.onSelected!(isChecked);
+                }
+              },
+            ),
+          ],
         ),
       ),
     );

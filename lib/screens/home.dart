@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:hexcolor/hexcolor.dart';
-import 'package:todo_app/constans/taskType.dart';
 import 'package:todo_app/model/task.dart';
 import 'package:todo_app/screens/add_new_task.dart';
 import 'package:todo_app/todoitem.dart';
 import 'package:todo_app/constans/color.dart';
+import 'package:todo_app/database_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,46 +16,39 @@ class HomeScreen extends StatefulWidget {
 //List<String> todo = ["Study Lessons", "Run 5K", "Go to part"];
 //List<String> completed = ["Game meetup", "Take out trash"];
 
-List<Task> todo = [
-  Task(
-      type: TaskType.note,
-      title: "Study Lessons",
-      description: "Study COMP117",
-      isCompleted: false),
-  Task(
-      type: TaskType.calender,
-      title: "Run 5K",
-      description: "Attend to party",
-      isCompleted: false),
-  Task(
-      type: TaskType.contest,
-      title: "Go to part",
-      description: "Run 5 kilometres",
-      isCompleted: false),
-];
-List<Task> completed = [
-Task(
-      type: TaskType.calender,
-      title: "Game meetup",
-      description: "Attend to party",
-      isCompleted: false),
-  Task(
-      type: TaskType.contest,
-      title: "Take out trash",
-      description: "Run 5 kilometres",
-      isCompleted: false),
-Task(
-      type: TaskType.contest,
-      title: "Go to part",
-      description: "Run 5 kilometres",
-      isCompleted: true),
-];
-
-void addNewTask( Task newtask){
-  todo.add(newtask);
-}
-
 class _HomeScreenState extends State<HomeScreen> {
+  List<Task> todo = [];
+  List<Task> completed = [];
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTasks();
+  }
+
+  Future<void> _loadTasks() async {
+    List<Task> tasks = await _databaseHelper.queryAllRows();
+    setState(() {
+      todo = tasks.where((task) => !task.isCompleted).toList();
+      completed = tasks.where((task) => task.isCompleted).toList();
+    });
+  }
+
+  Future<void> _deleteCompletedTasks() async {
+    for (var task in todo.where((task) => task.isCompleted).toList()) {
+      await _databaseHelper.delete(task.id);
+    }
+    _loadTasks(); // Reload tasks after deletion
+  }
+
+  void _addNewTask(Task newTask) {
+    setState(() {
+      todo.add(newTask);
+    });
+    _databaseHelper.insert(newTask); // Save to database
+  }
+
   @override
   Widget build(BuildContext context) {
     double deviceWidth = MediaQuery.of(context).size.width;
@@ -70,9 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 width: deviceWidth,
                 height: deviceHeight / 3,
-                //color: Colors.yellow,
                 decoration: const BoxDecoration(
-                  //color: Colors.yellow,
                   image: DecorationImage(
                       image: AssetImage("lib/assests/images/Header.png"),
                       fit: BoxFit.cover),
@@ -114,7 +105,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       },
                     ),
-                   
                   ),
                 ),
               ),
@@ -136,21 +126,30 @@ class _HomeScreenState extends State<HomeScreen> {
                     primary: false,
                     itemCount: completed.length,
                     itemBuilder: (context, index) {
-                      return TodoItem(
-                        task: completed[index]);
+                      return TodoItem(task: completed[index]);
                     },
                   ),
                 ),
               ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (context) => AddNewTaskScreen(
-                      addNewTask: (newTask) => addNewTask(newTask),
-                    ),
-                  ));
-                },
-                child: const Text("Add New Task"),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => AddNewTaskScreen(
+                          addNewTask: (newTask) => _addNewTask(newTask),
+                        ),
+                      ));
+                    },
+                    child: const Text("Add New Task"),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: _deleteCompletedTasks,
+                    child: const Text("Delete Completed Tasks"),
+                  ),
+                ],
               ),
             ],
           ),
